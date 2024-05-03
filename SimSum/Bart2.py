@@ -91,10 +91,15 @@ class SumSim(pl.LightningModule):
         self.summarizer = self.summarizer.to(self.args.device)
 
 
-        #self.simplifier = BartForConditionalGeneration.from_pretrained(self.args.sum_model)
-        self.simplifier = BartFineTuner.load_from_checkpoint("experiments/exp_WikiLarge_BARTSingle/checkpoint-epoch=2.ckpt")
-        self.simplifier = self.simplifier.model.to(self.args.device)
+        self.simplifier = BartForConditionalGeneration.from_pretrained(self.args.sim_model)
+        # self.simplifier = BartFineTuner.load_from_checkpoint("experiments/exp_WikiLarge_BARTSingle/checkpoint-epoch=2.ckpt")
+        self.simplifier = self.simplifier.to(self.args.device)
         self.simplifier_tokenizer = BartTokenizerFast.from_pretrained(self.args.sim_model)
+
+        self.W = torch.randn((768, int(self.args.hidden_size)), requires_grad=True, device = self.args.device)
+
+        self.CosSim = nn.CosineSimilarity(dim = 2, eps = 1e-6)
+        self.relu = nn.ReLU()
 
 
     def is_logger(self):
@@ -127,7 +132,7 @@ class SumSim(pl.LightningModule):
         ## summarizer stage
         inputs = self.summarizer_tokenizer(
             source,
-            max_length = 512,
+            max_length = 256,
             truncation = True,
             padding = 'max_length',
             return_tensors = 'pt'
@@ -148,7 +153,7 @@ class SumSim(pl.LightningModule):
             decoder_attention_mask = batch['target_mask']
         )
         
-        #H1 = sum_outputs.encoder_last_hidden_state
+        H1 = sum_outputs.encoder_last_hidden_state
 
         # generate summary
         summary_ids = self.summarizer.generate(
@@ -188,15 +193,14 @@ class SumSim(pl.LightningModule):
             labels = labels,
             decoder_attention_mask = batch['target_mask']
         )
-        #H2 = sim_outputs.encoder_last_hidden_state
+        H2 = sim_outputs.encoder_last_hidden_state
         
         ## CosSim
-        # Rep1 = torch.matmul(H1, self.W)
-        # Rep2 = torch.matmul(H2, self.W)
-        # Rep1 = self.relu(Rep1)
-        # Rep2 = self.relu(Rep2)
-        # CosSim = nn.CosineSimilarity(dim=2, eps=1e-6)
-        # sim_score = CosSim(Rep1, Rep2)
+        Rep1 = torch.matmul(H1, self.W)
+        Rep2 = torch.matmul(H2, self.W)
+        Rep1 = self.relu(Rep1)
+        Rep2 = self.relu(Rep2)
+        sim_score = self.CosSim(Rep1, Rep2)
 
         ## KL loss
         # H1 = torch.transpose((torch.transpose(H1, 1,2)@self.Q), 1,2)
@@ -223,7 +227,7 @@ class SumSim(pl.LightningModule):
             #loss += (self.args.lambda_ * self.kl_loss(Rep1, Rep2))
             
             ### CosSim ###
-            #loss += (-self.args.lambda_ * (sim_score.mean(dim=1).mean(dim=0)))
+            loss += (-self.args.lambda_ * (sim_score.mean(dim=1).mean(dim=0)))
 
 
 
@@ -258,7 +262,7 @@ class SumSim(pl.LightningModule):
             # summarize the document
             inputs = self.summarizer_tokenizer(
             [text],
-            max_length = 512,
+            max_length = 256,
             truncation = True,
             padding = 'max_length',
             return_tensors = 'pt'
@@ -329,9 +333,9 @@ class SumSim(pl.LightningModule):
             {
                 "params": [p for n,p in model2.named_parameters()]
             },
-            # {
-            #     "params": self.W
-            # },
+            {
+                "params": self.W
+            },
             # {
             #     "params": self.Q
             # },
@@ -396,10 +400,10 @@ class SumSim(pl.LightningModule):
       p = ArgumentParser(parents=[parent_parser],add_help = False)
       # facebook/bart-base
       p.add_argument('-HiddenSize','--hidden_size',type=int, default = 1)
-      p.add_argument('-SeqDim','--seq_dim', type=int, default = 512)
+      p.add_argument('-SeqDim','--seq_dim', type=int, default = 256)
       p.add_argument('-Weight1', '--w1', type = int, default = 1)
       p.add_argument('-Weight2', '--w2', type = int, default = 1)
-      p.add_argument('-Lambda', '--lambda_', type = int, default = 11)
+      p.add_argument('-Lambda', '--lambda_', type = int, default = 1)
       # BRIO: Yale-LILY/brio-cnndm-uncased ainize/bart-base-cnn
       p.add_argument('-Summarizer','--sum_model', default='ainize/bart-base-cnn')
       p.add_argument('-Simplifier','--sim_model', default='facebook/bart-base')
@@ -410,10 +414,10 @@ class SumSim(pl.LightningModule):
       p.add_argument('-AdamEps','--adam_epsilon', default=1e-8)
       p.add_argument('-WeightDecay','--weight_decay', default = 0.0001)
       p.add_argument('-WarmupSteps','--warmup_steps',default=5)
-      p.add_argument('-NumEpoch','--num_train_epochs',default=7)
+      p.add_argument('-NumEpoch','--num_train_epochs',default=4)
       p.add_argument('-CosLoss','--custom_loss', default=False)
       p.add_argument('-GradAccuSteps','--gradient_accumulation_steps', default=1)
-      p.add_argument('-GPUs','--n_gpu',default=torch.cuda.device_count())
+      p.add_argument('-GPUs','--n_gpu',default=1)
       p.add_argument('-nbSVS','--nb_sanity_val_steps',default = -1)
       p.add_argument('-TrainSampleSize','--train_sample_size', default=1)
       p.add_argument('-ValidSampleSize','--valid_sample_size', default=1)

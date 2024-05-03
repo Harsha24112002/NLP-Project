@@ -67,16 +67,16 @@ set_seed(42)
 model_dir = None
 _model_dirname = None
 max_len = 256
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+device = torch.device("cuda:4" if torch.cuda.is_available() else "cpu")
+# device = "cpu"
 # specify the model_name and checkpoint_name
 
-model_dirname = 'exp_1713091368210509'
-checkpoint_path = 'checkpoint-epoch=6.ckpt'
+model_dirname = 'exp_1713815310100839'
+checkpoint_path = 'checkpoint-epoch=1.ckpt'
 
 #### Single model ####
 # load the model
-Model = BartBaseLineFineTuned.load_from_checkpoint(EXP_DIR / model_dirname / checkpoint_path).to(device)
+Model = T5BaseLineFineTuned.load_from_checkpoint(EXP_DIR / model_dirname / checkpoint_path).to(device)
 model = Model.model.to(device)
 tokenizer = Model.tokenizer
 #### Single model ####
@@ -127,7 +127,7 @@ def generate(sentence, preprocessor=None):
 
     # For T5
     sentence = 'summarize: ' + sentence
-
+    print(device)
     encoding = summarizer_tokenizer(
         [sentence],
         max_length = 512,

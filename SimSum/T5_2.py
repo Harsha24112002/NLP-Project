@@ -66,8 +66,9 @@ class SumSim(pl.LightningModule):
         self.summarizer_tokenizer = T5TokenizerFast.from_pretrained(self.args.sum_model)
         self.summarizer = self.summarizer.to(self.args.device)
 
-        self.simplifier = T5FineTuner.load_from_checkpoint('experiments/exp_T5_FineTuned_WikiLarge/checkpoint-epoch=2.ckpt')
-        self.simplifier = self.simplifier.model.to(self.args.device)
+        self.simplifier = T5ForConditionalGeneration.from_pretrained(self.args.sim_model)
+        # self.simplifier = T5FineTuner.load_from_checkpoint('experiments/exp_T5_FineTuned_WikiLarge/checkpoint-epoch=2.ckpt')
+        self.simplifier = self.simplifier.to(self.args.device)
         self.simplifier_tokenizer = T5TokenizerFast.from_pretrained(self.args.sim_model)
 
         
@@ -398,7 +399,7 @@ class SumSim(pl.LightningModule):
       p.add_argument('-AdamEps','--adam_epsilon', default=1e-8)
       p.add_argument('-WeightDecay','--weight_decay', default = 0.0001)
       p.add_argument('-WarmupSteps','--warmup_steps',default=5)
-      p.add_argument('-NumEpoch','--num_train_epochs',default=7)
+      p.add_argument('-NumEpoch','--num_train_epochs',default=4)
       p.add_argument('-CosLoss','--custom_loss', default=True)
       p.add_argument('-GradAccuSteps','--gradient_accumulation_steps', default=1)
       p.add_argument('-GPUs','--n_gpu',default=1) #torch.cuda.device_count()

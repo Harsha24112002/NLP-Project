@@ -260,7 +260,7 @@ class BartFineTuner(pl.LightningModule):
       p.add_argument('-NumEpoch','--num_train_epochs',default=7)
       p.add_argument('-CosLoss','--custom_loss', default=False)
       p.add_argument('-GradAccuSteps','--gradient_accumulation_steps', default=1)
-      p.add_argument('-GPUs','--n_gpu',default=torch.cuda.device_count())
+      p.add_argument('-GPUs','--n_gpu',default=1)
       p.add_argument('-nbSVS','--nb_sanity_val_steps',default = -1)
       p.add_argument('-TrainSampleSize','--train_sample_size', default=1)
       p.add_argument('-ValidSampleSize','--valid_sample_size', default=1)
